@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}管理后台{% endblock %} - SimpleChat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    {% if current_user.is_authenticated and current_user.is_admin %}
+    <!-- 管理员布局 -->
+    <div class="admin-layout">
+        <!-- 侧边栏 -->
+        <aside class="admin-sidebar">
+            <div class="admin-sidebar-header">
+                <a href="{{ url_for('admin.dashboard') }}" class="admin-logo">SimpleChat 管理</a>
+            </div>
+            <nav class="admin-nav">
+                <a href="{{ url_for('admin.dashboard') }}" class="admin-nav-item">仪表板</a>
+                <a href="{{ url_for('admin.users') }}" class="admin-nav-item">用户管理</a>
+                <a href="{{ url_for('admin.conversations') }}" class="admin-nav-item">对话记录</a>
+                <a href="{{ url_for('admin.config') }}" class="admin-nav-item">系统配置</a>
+                <a href="{{ url_for('main.chat') }}" class="admin-nav-item">返回聊天</a>
+            </nav>
+        </aside>
+
+        <!-- 主要内容 -->
+        <div class="admin-content">
+            <!-- 顶部导航 -->
+            <header class="admin-header">
+                <div>
+                    <h1>{% block page_title %}管理后台{% endblock %}</h1>
+                </div>
+                <div class="admin-user">
+                    <span>欢迎，{{ current_user.username }}</span>
+                    <a href="{{ url_for('admin.logout') }}" class="logout-btn">退出登录</a>
+                </div>
+            </header>
+
+            <!-- 页面内容 -->
+            <main style="padding: 2rem;">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <div class="flash-messages">
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }}">{{ message }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    {% else %}
+    <!-- 非管理员用户 -->
+    <div class="main-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        {% block login_content %}{% endblock %}
+    </div>
+    {% endif %}
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}对话 - SimpleChat{% endblock %}
+
+{% block content %}
+<div id="chatApp" class="chat-container">
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <button id="newChatBtn" class="new-chat-btn">+ 新建对话</button>
+        </div>
+        <div id="conversationList" class="conversation-list">
+            <!-- 对话列表将通过JavaScript动态加载 -->
+        </div>
+    </aside>
+
+    <!-- 主聊天区域 -->
+    <div class="chat-main">
+        <!-- 聊天头部 -->
+        <div class="chat-header">
+            <h2 id="chatTitle" class="chat-title">选择或创建一个对话</h2>
+        </div>
+
+        <!-- 消息区域 -->
+        <div id="chatMessages" class="chat-messages">
+            <div class="welcome-message" style="text-align: center; padding: 2rem; color: #666;">
+                <h3>欢迎使用 SimpleChat</h3>
+                <p>选择一个对话开始聊天，或者创建一个新的对话。</p>
+            </div>
+        </div>
+
+        <!-- 输入区域 -->
+        <div class="chat-input">
+            <div class="input-group">
+                <textarea 
+                    id="messageInput" 
+                    class="message-input" 
+                    placeholder="输入您的消息..."
+                    rows="1"
+                ></textarea>
+                <button id="sendBtn" class="send-btn">发送</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 移动端侧边栏切换按钮 -->
+<button id="toggleSidebar" class="mobile-sidebar-toggle" style="display: none;">
+    ☰
+</button>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+
+<style>
+/* 移动端适配 */
+@media (max-width: 768px) {
+    .chat-container {
+        position: relative;
+    }
+    
+    .sidebar {
+        position: absolute;
+        left: -100%;
+        z-index: 1000;
+        height: 100%;
+        transition: left 0.3s ease;
+    }
+    
+    .sidebar.show {
+        left: 0;
+    }
+    
+    .mobile-sidebar-toggle {
+        display: block !important;
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 1001;
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 0.5rem;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    
+    .chat-main {
+        width: 100%;
+    }
+}
+
+/* 欢迎消息样式 */
+.welcome-message {
+    opacity: 0.8;
+}
+
+.welcome-message h3 {
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
+/* Flash消息样式 */
+.flash-messages {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: 1000;
+    max-width: 300px;
+}
+
+.alert {
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.alert-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.alert-error,
+.alert-danger {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.alert-info {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+.alert-warning {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+</style>
+
+<script>
+// 移动端侧边栏切换
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleBtn = document.getElementById('toggleSidebar');
+    const sidebar = document.querySelector('.sidebar');
+    
+    if (toggleBtn && sidebar) {
+        toggleBtn.addEventListener('click', function() {
+            sidebar.classList.toggle('show');
+        });
+        
+        // 点击外部关闭侧边栏
+        document.addEventListener('click', function(e) {
+            if (window.innerWidth <= 768 && 
+                !sidebar.contains(e.target) && 
+                !toggleBtn.contains(e.target) &&
+                sidebar.classList.contains('show')) {
+                sidebar.classList.remove('show');
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,139 @@
+{% extends "admin/base.html" %}
+
+{% block page_title %}系统配置{% endblock %}
+
+{% block content %}
+<div class="config-container">
+    <div class="config-card">
+        <h3 class="config-title">OpenAI API 配置</h3>
+        
+        <form method="POST" id="configForm">
+            <div class="form-group">
+                <label for="api_url" class="form-label">API 地址</label>
+                <input type="url" id="api_url" name="api_url" class="form-input" 
+                       value="{{ config.get('api_url', '') }}" 
+                       placeholder="https://api.siliconflow.cn/v1/chat/completions" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="api_key" class="form-label">API 密钥</label>
+                <input type="password" id="api_key" name="api_key" class="form-input" 
+                       value="{{ config.get('api_key', '') }}" 
+                       placeholder="sk-..." required>
+                <small style="color: #666; font-size: 0.8rem;">密钥将被安全存储</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="model" class="form-label">模型名称</label>
+                <input type="text" id="model" name="model" class="form-input" 
+                       value="{{ config.get('model', 'Qwen/Qwen2-7B-Instruct') }}" 
+                       placeholder="Qwen/Qwen2-7B-Instruct" required>
+            </div>
+            
+            <div style="display: flex; gap: 1rem;">
+                <button type="button" id="testBtn" class="btn btn-secondary">测试连接</button>
+                <button type="submit" class="btn btn-primary">保存配置</button>
+            </div>
+        </form>
+        
+        <div id="testResult" style="display: none;"></div>
+    </div>
+    
+    <div class="config-card">
+        <h3 class="config-title">使用说明</h3>
+        <div style="color: #666; line-height: 1.6;">
+            <h4 style="color: var(--text-color); margin-bottom: 0.5rem;">支持的API服务商:</h4>
+            <ul style="margin-bottom: 1rem;">
+                <li><strong>硅基流动</strong>: https://api.siliconflow.cn/v1/chat/completions</li>
+                <li><strong>OpenAI</strong>: https://api.openai.com/v1/chat/completions</li>
+                <li><strong>其他兼容OpenAI格式的服务</strong></li>
+            </ul>
+            
+            <h4 style="color: var(--text-color); margin-bottom: 0.5rem;">常用模型:</h4>
+            <ul>
+                <li>Qwen/Qwen2-7B-Instruct (推荐)</li>
+                <li>Qwen/Qwen2-72B-Instruct</li>
+                <li>gpt-3.5-turbo</li>
+                <li>gpt-4</li>
+            </ul>
+            
+            <div style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 4px;">
+                <strong>注意:</strong> 请确保API密钥有效且有足够的配额。配置保存前会自动测试连接。
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('testBtn').addEventListener('click', function() {
+    const apiUrl = document.getElementById('api_url').value.trim();
+    const apiKey = document.getElementById('api_key').value.trim();
+    const model = document.getElementById('model').value.trim();
+    
+    if (!apiUrl || !apiKey || !model) {
+        alert('请填写所有字段');
+        return;
+    }
+    
+    const testBtn = this;
+    const originalText = testBtn.textContent;
+    testBtn.textContent = '测试中...';
+    testBtn.disabled = true;
+    
+    const resultDiv = document.getElementById('testResult');
+    resultDiv.style.display = 'none';
+    
+    fetch('/admin/test-api', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            api_url: apiUrl,
+            api_key: apiKey,
+            model: model
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        resultDiv.style.display = 'block';
+        if (data.success) {
+            resultDiv.className = 'test-result success';
+            resultDiv.textContent = data.message;
+        } else {
+            resultDiv.className = 'test-result error';
+            resultDiv.textContent = data.message;
+        }
+    })
+    .catch(error => {
+        resultDiv.style.display = 'block';
+        resultDiv.className = 'test-result error';
+        resultDiv.textContent = '测试失败: ' + error.message;
+    })
+    .finally(() => {
+        testBtn.textContent = originalText;
+        testBtn.disabled = false;
+    });
+});
+
+// 表单提交前测试连接
+document.getElementById('configForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const apiUrl = document.getElementById('api_url').value.trim();
+    const apiKey = document.getElementById('api_key').value.trim();
+    const model = document.getElementById('model').value.trim();
+    
+    if (!apiUrl || !apiKey || !model) {
+        alert('请填写所有字段');
+        return;
+    }
+    
+    if (confirm('保存前将先测试API连接，确定继续吗？')) {
+        this.submit();
+    }
+});
+</script>
+{% endblock %}

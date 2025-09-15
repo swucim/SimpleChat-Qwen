@@ -1,0 +1,79 @@
+{% extends "admin/base.html" %}
+
+{% block page_title %}仪表板{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1 class="dashboard-title">仪表板</h1>
+        <p class="dashboard-subtitle">系统运行状态概览</p>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="stats-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 2rem; max-width: 900px;">
+        <div class="stat-card">
+            <div class="stat-value">{{ user_stats.get('total_users', 0) }}</div>
+            <div class="stat-label">总用户数</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-value">{{ user_stats.get('active_users', 0) }}</div>
+            <div class="stat-label">活跃用户（7天）</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-value">{{ conversation_stats.get('total_conversations', 0) }}</div>
+            <div class="stat-label">总对话数</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-value">{{ conversation_stats.get('today_conversations', 0) }}</div>
+            <div class="stat-label">今日新对话</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-value">{{ conversation_stats.get('total_messages', 0) }}</div>
+            <div class="stat-label">总消息数</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-value">{{ conversation_stats.get('today_messages', 0) }}</div>
+            <div class="stat-label">今日消息数</div>
+        </div>
+    </div>
+
+    <!-- 最近活动 -->
+    {% if recent_activities %}
+    <div class="table-container">
+        <div class="table-header">
+            <h3 class="table-title">最近活动</h3>
+        </div>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>用户</th>
+                    <th>活动</th>
+                    <th>时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for activity in recent_activities %}
+                <tr>
+                    <td>{{ activity.user }}</td>
+                    <td>创建对话: {{ activity.title }}</td>
+                    <td>{{ activity.time.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>
+                        <a href="{{ url_for('admin.view_conversation', conversation_id=activity.conversation_id) }}" 
+                           class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                            查看
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

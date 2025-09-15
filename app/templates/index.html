@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}SimpleChat - 智能对话助手{% endblock %}
+
+{% block content %}
+<div class="main-container">
+    <div class="hero-section">
+        <h1>欢迎使用 SimpleChat</h1>
+        <p>基于大模型的智能对话助手，为您提供便捷的AI对话体验。</p>
+        
+        <div style="text-align: center; margin: 2rem 0;">
+            <a href="{{ url_for('main.chat') }}" class="btn btn-primary" style="font-size: 1.2rem; padding: 1rem 2rem;">
+                开始对话
+            </a>
+        </div>
+    </div>
+
+    <div class="features-section" style="margin-top: 3rem;">
+        <h2 style="text-align: center; margin-bottom: 2rem;">功能特色</h2>
+        
+        <div class="features-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+            <div class="feature-card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: var(--shadow); text-align: center;">
+                <h3 style="color: var(--primary-color); margin-bottom: 1rem;">智能对话</h3>
+                <p>基于先进的大语言模型，提供自然流畅的对话体验，支持多轮对话和上下文理解。</p>
+            </div>
+            
+            <div class="feature-card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: var(--shadow); text-align: center;">
+                <h3 style="color: var(--primary-color); margin-bottom: 1rem;">历史记录</h3>
+                <p>自动保存对话历史，随时回顾之前的聊天内容，支持多个对话会话管理。</p>
+            </div>
+            
+            <div class="feature-card" style="background: white; padding: 2rem; border-radius: 8px; box-shadow: var(--shadow); text-align: center;">
+                <h3 style="color: var(--primary-color); margin-bottom: 1rem;">即用即走</h3>
+                <p>无需注册登录，打开即可使用，简单便捷的用户体验。</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.hero-section {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    margin-bottom: 2rem;
+}
+
+.hero-section h1 {
+    font-size: 3rem;
+    font-weight: bold;
+    color: var(--text-color);
+    margin-bottom: 1rem;
+}
+
+.hero-section p {
+    font-size: 1.2rem;
+    color: #666;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+    .hero-section h1 {
+        font-size: 2rem;
+    }
+    
+    .hero-section p {
+        font-size: 1rem;
+    }
+    
+    .features-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends "admin/base.html" %}
+
+{% block page_title %}对话记录{% endblock %}
+
+{% block content %}
+<div class="table-container">
+    <div class="table-header">
+        <h3 class="table-title">对话记录</h3>
+        <div>
+            {% if selected_user_id %}
+                <a href="{{ url_for('admin.conversations') }}" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                    显示所有对话
+                </a>
+            {% endif %}
+            总计: {{ conversations.total if conversations else 0 }} 个对话
+        </div>
+    </div>
+    
+    {% if conversations and conversations.items %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>标题</th>
+                <th>用户</th>
+                <th>消息数</th>
+                <th>创建时间</th>
+                <th>最后更新</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for conversation in conversations.items %}
+            <tr>
+                <td>{{ conversation.id }}</td>
+                <td>{{ conversation.title }}</td>
+                <td>
+                    {% if conversation.user.username %}
+                        {{ conversation.user.username }}
+                    {% else %}
+                        用户_{{ conversation.user.session_id[:8] }}
+                    {% endif %}
+                </td>
+                <td>{{ conversation.get_message_count() }}</td>
+                <td>{{ conversation.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>{{ conversation.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>
+                    <a href="{{ url_for('admin.view_conversation', conversation_id=conversation.id) }}" 
+                       class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                        查看详情
+                    </a>
+                    {% if not selected_user_id %}
+                    <a href="{{ url_for('admin.conversations', user_id=conversation.user.id) }}" 
+                       class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-left: 0.5rem;">
+                        用户对话
+                    </a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <!-- 分页 -->
+    {% if conversations.pages > 1 %}
+    <div class="pagination">
+        {% if conversations.has_prev %}
+            {% if selected_user_id %}
+                <a href="{{ url_for('admin.conversations', page=conversations.prev_num, user_id=selected_user_id) }}">&laquo; 上一页</a>
+            {% else %}
+                <a href="{{ url_for('admin.conversations', page=conversations.prev_num) }}">&laquo; 上一页</a>
+            {% endif %}
+        {% endif %}
+        
+        {% for page_num in conversations.iter_pages() %}
+            {% if page_num %}
+                {% if page_num != conversations.page %}
+                    {% if selected_user_id %}
+                        <a href="{{ url_for('admin.conversations', page=page_num, user_id=selected_user_id) }}">{{ page_num }}</a>
+                    {% else %}
+                        <a href="{{ url_for('admin.conversations', page=page_num) }}">{{ page_num }}</a>
+                    {% endif %}
+                {% else %}
+                    <span class="current">{{ page_num }}</span>
+                {% endif %}
+            {% else %}
+                <span>…</span>
+            {% endif %}
+        {% endfor %}
+        
+        {% if conversations.has_next %}
+            {% if selected_user_id %}
+                <a href="{{ url_for('admin.conversations', page=conversations.next_num, user_id=selected_user_id) }}">下一页 &raquo;</a>
+            {% else %}
+                <a href="{{ url_for('admin.conversations', page=conversations.next_num) }}">下一页 &raquo;</a>
+            {% endif %}
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    {% else %}
+    <div style="text-align: center; padding: 2rem; color: #666;">
+        <p>暂无对话记录</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

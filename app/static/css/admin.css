@@ -1,0 +1,286 @@
+/* 管理员后台样式 */
+
+/* 登录页面样式 */
+.login-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+}
+
+.login-card {
+    background: white;
+    padding: 3rem;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    width: 100%;
+    max-width: 400px;
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.login-title {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+}
+
+.login-subtitle {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* 仪表板样式 */
+.dashboard-container {
+    padding: 2rem;
+}
+
+.dashboard-header {
+    margin-bottom: 2rem;
+}
+
+.dashboard-title {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+}
+
+.dashboard-subtitle {
+    color: #666;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid var(--primary-color);
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* 表格样式 */
+.table-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.table-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.table-title {
+    font-size: 1.2rem;
+    font-weight: 500;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th,
+.table td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.table th {
+    background: var(--secondary-color);
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+/* 分页样式 */
+.pagination {
+    padding: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pagination a,
+.pagination span {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    text-decoration: none;
+    border-radius: 4px;
+}
+
+.pagination a:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+.pagination .current {
+    background: var(--primary-color);
+    color: white;
+}
+
+/* 配置表单样式 */
+.config-container {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.config-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    margin-bottom: 2rem;
+}
+
+.config-title {
+    font-size: 1.3rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+    color: var(--text-color);
+}
+
+.test-result {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.test-result.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.test-result.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* 侧边导航样式 */
+.admin-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+.admin-sidebar {
+    width: 250px;
+    background: #2c3e50;
+    color: white;
+}
+
+.admin-sidebar-header {
+    padding: 1rem;
+    border-bottom: 1px solid #34495e;
+}
+
+.admin-logo {
+    color: white;
+    text-decoration: none;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.admin-nav {
+    padding: 1rem 0;
+}
+
+.admin-nav-item {
+    display: block;
+    padding: 0.75rem 1rem;
+    color: #bdc3c7;
+    text-decoration: none;
+    transition: all 0.3s;
+}
+
+.admin-nav-item:hover,
+.admin-nav-item.active {
+    background: #34495e;
+    color: white;
+}
+
+.admin-content {
+    flex: 1;
+    background: var(--secondary-color);
+}
+
+.admin-header {
+    background: white;
+    padding: 1rem 2rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.admin-user {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.logout-btn {
+    color: #dc3545;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.logout-btn:hover {
+    text-decoration: underline;
+}
+
+/* 响应式管理后台 */
+@media (max-width: 768px) {
+    .admin-layout {
+        flex-direction: column;
+    }
+    
+    .admin-sidebar {
+        width: 100%;
+        position: relative;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .table-container {
+        overflow-x: auto;
+    }
+}

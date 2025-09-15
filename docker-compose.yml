@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "80:80"
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://simplechat:password@db:5432/simplechat
+      - SECRET_KEY=your-production-secret-key-here
+      - OPENAI_API_URL=https://api.siliconflow.cn/v1/chat/completions
+      - OPENAI_API_KEY=your-api-key-here
+      - OPENAI_MODEL=Qwen/Qwen2-7B-Instruct
+    depends_on:
+      - db
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: simplechat
+      POSTGRES_USER: simplechat
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - web
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
