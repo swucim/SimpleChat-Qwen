@@ -80,11 +80,14 @@ def get_messages(conversation_id):
 
 @chat.route('/send', methods=['POST'])
 def send_message():
-    """发送消息"""
+    """发送消息（备用非流式端点）"""
     try:
+        logging.info("收到发送消息请求")
         data = request.get_json()
+        logging.info(f"请求数据: {data}")
         
         if not data or 'message' not in data or 'conversation_id' not in data:
+            logging.error("请求参数不完整")
             return jsonify({
                 'success': False,
                 'error': '请求参数不完整'
@@ -94,23 +97,31 @@ def send_message():
         message = data['message'].strip()
         
         if not message:
+            logging.error("消息内容为空")
             return jsonify({
                 'success': False,
                 'error': '消息内容不能为空'
             }), 400
         
-        user = ChatService.get_or_create_user()
+        logging.info(f"处理消息: conversation_id={conversation_id}, message='{message[:50]}...'")
         
-        # 发送消息并获取AI回复
+        user = ChatService.get_or_create_user()
+        logging.info(f"用户ID: {user.id}")
+        
+        # 使用原有的非流式方法确保保存
+        logging.info("开始调用ChatService.send_message")
         result = ChatService.send_message(conversation_id, message, user.id)
+        logging.info(f"ChatService.send_message返回结果: {result.get('success', False)}")
         
         if result['success']:
+            logging.info("消息发送成功，返回结果")
             return jsonify(result)
         else:
+            logging.error(f"消息发送失败: {result.get('error', 'Unknown error')}")
             return jsonify(result), 500
             
     except Exception as e:
-        logging.error(f"发送消息失败: {str(e)}")
+        logging.error(f"发送消息异常: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
             'error': '发送消息失败'
@@ -166,8 +177,23 @@ def send_message_stream():
         # 获取流式生成器
         stream_generator = ChatService.send_message_stream(conversation_id, message, user.id)
         
+        def generate_with_logging():
+            """包装生成器以添加日志"""
+            logging.info(f"开始流式响应: conversation_id={conversation_id}, message_len={len(message)}")
+            chunk_count = 0
+            try:
+                for chunk in stream_generator:
+                    chunk_count += 1
+                    if chunk_count % 10 == 0:  # 每10个chunk记录一次
+                        logging.info(f"已发送 {chunk_count} 个chunk")
+                    yield chunk
+                logging.info(f"流式响应完成: 总共发送 {chunk_count} 个chunk")
+            except Exception as e:
+                logging.error(f"流式生成器错误: {str(e)}", exc_info=True)
+                raise
+        
         return Response(
-            stream_generator,
+            generate_with_logging(),
             mimetype='text/event-stream',
             headers={
                 'Cache-Control': 'no-cache',
@@ -177,7 +203,7 @@ def send_message_stream():
         )
             
     except Exception as e:
-        logging.error(f"发送流式消息失败: {str(e)}")
+        logging.error(f"发送流式消息失败: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
             'error': '发送消息失败'

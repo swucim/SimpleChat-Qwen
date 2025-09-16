@@ -126,15 +126,59 @@ body {
     cursor: pointer;
     transition: background-color 0.3s;
     border-left: 3px solid transparent;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
 }
 
 .conversation-item:hover {
     background: #f0f0f0;
 }
 
+.conversation-item:hover .conversation-delete-btn {
+    opacity: 1;
+}
+
 .conversation-item.active {
     border-left-color: var(--primary-color);
     background: #f8f9fa;
+}
+
+.conversation-content {
+    flex: 1;
+    cursor: pointer;
+}
+
+.conversation-delete-btn {
+    opacity: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 3px;
+    color: #999;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+}
+
+.conversation-delete-btn:hover {
+    background: #ffebee;
+    color: #f44336;
+    transform: scale(1.1);
+}
+
+.conversation-delete-btn svg {
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .conversation-title {
@@ -200,10 +244,15 @@ body {
 }
 
 /* 流式输出样式 */
+.message.streaming {
+    position: relative;
+}
+
 .message.streaming .streaming-cursor {
     animation: blink 1s infinite;
     color: var(--primary-color);
     font-weight: bold;
+    margin-left: 2px;
 }
 
 .streaming-content {
@@ -214,6 +263,18 @@ body {
     -moz-user-select: text;
     -ms-user-select: text;
     cursor: text;
+    pointer-events: auto; /* 允许选择文本 */
+    -webkit-user-modify: read-only; /* WebKit不可编辑 */
+    -moz-user-modify: read-only; /* Firefox不可编辑 */
+    user-modify: read-only; /* 标准不可编辑 */
+    outline: none;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    color: inherit;
+    min-height: 1.2em;
 }
 
 .message-content {
@@ -223,6 +284,10 @@ body {
     -ms-user-select: text;
     cursor: text;
     outline: none;
+    pointer-events: auto; /* 允许选择文本 */
+    -webkit-user-modify: read-only; /* WebKit不可编辑 */
+    -moz-user-modify: read-only; /* Firefox不可编辑 */
+    user-modify: read-only; /* 标准不可编辑 */
 }
 
 @keyframes blink {
@@ -450,4 +515,40 @@ body {
 .tooltip:hover .tooltiptext {
     visibility: visible;
     opacity: 1;
+}
+
+/* 通知提示样式 */
+.notification {
+    position: fixed;
+    top: 100px;
+    right: 20px;
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    color: white;
+    font-size: 0.9rem;
+    z-index: 10000;
+    animation: slideIn 0.3s ease-out;
+    max-width: 300px;
+    word-wrap: break-word;
+}
+
+.notification.success {
+    background: #4caf50;
+    border-left: 4px solid #388e3c;
+}
+
+.notification.error {
+    background: #f44336;
+    border-left: 4px solid #d32f2f;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
 }

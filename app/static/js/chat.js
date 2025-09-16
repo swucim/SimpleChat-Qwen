@@ -87,12 +87,28 @@ class SimpleChat {
             item.dataset.conversationId = conv.id;
             
             item.innerHTML = `
-                <div class="conversation-title">${this.escapeHtml(conv.title)}</div>
-                <div class="conversation-time">${this.formatTime(conv.last_message_time)}</div>
+                <div class="conversation-content">
+                    <div class="conversation-title">${this.escapeHtml(conv.title)}</div>
+                    <div class="conversation-time">${this.formatTime(conv.last_message_time)}</div>
+                </div>
+                <button class="conversation-delete-btn" title="删除对话">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                </button>
             `;
             
-            item.addEventListener('click', () => {
+            // 点击对话内容区域加载对话
+            const conversationContent = item.querySelector('.conversation-content');
+            conversationContent.addEventListener('click', () => {
                 this.loadConversation(conv.id);
+            });
+            
+            // 点击删除按钮
+            const deleteBtn = item.querySelector('.conversation-delete-btn');
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // 阻止事件冒泡
+                this.deleteConversation(conv.id, conv.title);
             });
             
             conversationList.appendChild(item);
@@ -229,14 +245,16 @@ class SimpleChat {
             created_at: new Date().toISOString()
         });
         
-        // 创建AI消息容器
-        const aiMessageElement = this.createStreamingMessageElement();
+        // 创建流式AI消息容器
+        const streamingMessage = this.createStreamingMessageElement();
         const messagesContainer = document.getElementById('chatMessages');
-        messagesContainer.appendChild(aiMessageElement);
+        messagesContainer.appendChild(streamingMessage);
         this.scrollToBottom();
         
+        const contentElement = streamingMessage.querySelector('.streaming-content');
+        let streamCompleted = false;
+        
         try {
-            // 使用 EventSource 来处理流式数据
             const response = await fetch('/api/chat/send-stream', {
                 method: 'POST',
                 headers: {
@@ -255,47 +273,49 @@ class SimpleChat {
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let buffer = '';
-            let streamCompleted = false;
-            
-            const aiContentElement = aiMessageElement.querySelector('.streaming-content');
             
             while (true) {
-                const { done, value } = await reader.read();
+                const { value, done } = await reader.read();
                 
                 if (done) {
                     streamCompleted = true;
                     break;
                 }
                 
+                // 将新数据添加到缓冲区
                 buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n\n');
-                buffer = lines.pop(); // 保留最后一个不完整的行
+                
+                // 按行分割处理
+                const lines = buffer.split('\n');
+                // 保留最后一个不完整的行
+                buffer = lines.pop() || '';
                 
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
-                        const data = line.slice(6);
+                        const data = line.slice(6).trim(); // 移除 'data: ' 前缀
+                        
                         if (data === '[DONE]') {
                             streamCompleted = true;
                             break;
                         }
                         
-                        try {
-                            const chunk = JSON.parse(data);
-                            this.handleStreamChunk(chunk, aiContentElement, aiMessageElement);
-                            
-                            // 如果收到 ai_complete 事件，标记为完成
-                            if (chunk.type === 'ai_complete') {
-                                streamCompleted = true;
+                        if (data) {
+                            try {
+                                const eventData = JSON.parse(data);
+                                this.handleStreamChunk(eventData, contentElement, streamingMessage);
+                            } catch (e) {
+                                console.warn('解析流式数据失败:', e, data);
                             }
-                        } catch (e) {
-                            console.error('解析流数据错误:', e);
                         }
                     }
                 }
                 
-                if (streamCompleted) {
-                    break;
-                }
+                if (streamCompleted) break;
+            }
+            
+            // 确保流式完成后恢复状态
+            if (streamCompleted) {
+                this.restoreUIState();
             }
             
             // 刷新对话列表（标题可能已更新）
@@ -304,9 +324,9 @@ class SimpleChat {
         } catch (error) {
             console.error('发送消息失败:', error);
             
-            // 移除AI消息容器
-            if (aiMessageElement && aiMessageElement.parentNode) {
-                aiMessageElement.parentNode.removeChild(aiMessageElement);
+            // 移除流式消息元素
+            if (streamingMessage && streamingMessage.parentNode) {
+                streamingMessage.parentNode.removeChild(streamingMessage);
             }
             
             // 根据错误类型显示不同的提示
@@ -318,12 +338,8 @@ class SimpleChat {
                 this.showError('发送消息失败，请重试');
             }
         } finally {
-            // 确保恢复输入和按钮状态
-            this.isLoading = false;
-            messageInput.disabled = false;
-            sendBtn.disabled = false;
-            sendBtn.textContent = '发送';
-            messageInput.focus();
+            // 确保恢复输入和按钮状态（作为备用机制）
+            this.restoreUIState();
         }
     }
 
@@ -364,6 +380,9 @@ class SimpleChat {
     
     handleStreamChunk(chunk, contentElement, messageElement) {
         switch (chunk.type) {
+            case 'user_message':
+                // 用户消息已经在前面显示了，这里不需要处理
+                break;
             case 'ai_start':
                 // AI开始生成回复
                 break;
@@ -387,6 +406,9 @@ class SimpleChat {
                 time.className = 'message-time';
                 time.textContent = this.formatTime(chunk.message.created_at);
                 contentElement.parentElement.appendChild(time);
+                
+                // 恢复界面状态
+                this.restoreUIState();
                 break;
             case 'error':
                 // 处理错误
@@ -395,7 +417,29 @@ class SimpleChat {
                     messageElement.parentNode.removeChild(messageElement);
                 }
                 this.showError(chunk.error);
+                // 错误时也要恢复界面状态
+                this.restoreUIState();
                 break;
+            default:
+                console.warn('未知流式事件类型:', chunk.type);
+        }
+    }
+    
+    restoreUIState() {
+        // 恢复输入和按钮状态
+        this.isLoading = false;
+        
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        
+        if (messageInput) {
+            messageInput.disabled = false;
+            messageInput.focus();
+        }
+        
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.textContent = '发送';
         }
     }
 
@@ -476,9 +520,90 @@ class SimpleChat {
         });
     }
 
+    async deleteConversation(conversationId, conversationTitle) {
+        // 确认删除
+        if (!confirm(`确定要删除对话 "${conversationTitle}" 吗？\n\n删除后将无法恢复。`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/chat/delete/${conversationId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // 如果删除的是当前对话，清空聊天区域
+                if (this.currentConversationId == conversationId) {
+                    this.currentConversationId = null;
+                    this.clearChatArea();
+                }
+                
+                // 重新加载对话列表
+                await this.loadConversations();
+                
+                // 简单的成功提示
+                this.showSuccess('对话删除成功');
+            } else {
+                this.showError(data.error || '删除对话失败');
+            }
+            
+        } catch (error) {
+            console.error('删除对话失败:', error);
+            this.showError('删除对话失败，请重试');
+        }
+    }
+    
+    clearChatArea() {
+        const chatMessages = document.getElementById('chatMessages');
+        const chatTitle = document.getElementById('chatTitle');
+        
+        if (chatMessages) {
+            chatMessages.innerHTML = `
+                <div class="welcome-message" style="text-align: center; padding: 2rem; color: #666;">
+                    <h3>欢迎使用 SimpleChat</h3>
+                    <p>选择一个对话开始聊天，或者创建一个新的对话。</p>
+                </div>
+            `;
+        }
+        
+        if (chatTitle) {
+            chatTitle.textContent = '选择或创建一个对话';
+        }
+    }
+    
+    showSuccess(message) {
+        // 简单的成功提示
+        const notification = document.createElement('div');
+        notification.className = 'notification success';
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        // 3秒后自动移除
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 3000);
+    }
+
     showError(message) {
         // 简单的错误提示
-        alert(message);
+        const notification = document.createElement('div');
+        notification.className = 'notification error';
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        // 3秒后自动移除
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 3000);
     }
 }
 

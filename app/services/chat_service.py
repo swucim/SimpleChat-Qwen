@@ -4,6 +4,8 @@ from app.models import User, Conversation, Message
 from app.services.api_service import api_service
 from flask import session, current_app
 import uuid
+import json
+from datetime import datetime
 
 class ChatService:
     """聊天服务类，处理对话相关的业务逻辑"""
@@ -99,16 +101,22 @@ class ChatService:
                 })
             
             # 调用API获取回复
+            current_app.logger.info("开始调用API")
             response = api_service.send_chat_request(api_messages)
+            current_app.logger.info(f"API调用完成，响应类型: {type(response)}")
             
             # 提取AI回复内容
             if 'choices' in response and len(response['choices']) > 0:
                 ai_message = response['choices'][0]['message']['content']
+                current_app.logger.info(f"AI回复内容长度: {len(ai_message)}")
             else:
+                current_app.logger.error(f"API返回格式错误: {response}")
                 raise Exception("API返回格式错误")
             
             # 保存AI回复
+            current_app.logger.info("开始保存AI回复")
             ai_msg = Message.create_message(conversation_id, 'assistant', ai_message)
+            current_app.logger.info(f"AI消息保存成功，ID: {ai_msg.id}")
             
             return {
                 'success': True,
@@ -166,6 +174,8 @@ class ChatService:
             generator: 流式生成器
         """
         import json
+        from flask import current_app
+        
         try:
             # 验证对话是否属于用户
             if user_id:
@@ -202,61 +212,69 @@ class ChatService:
             full_response = ""
             ai_msg = None  # 初始化AI消息对象
             
+            # 获取应用实例
+            app = current_app._get_current_object()
+            
             # 生成流式数据
             def stream_with_save():
                 nonlocal full_response, ai_msg
                 try:
-                    yield f"data: {json.dumps({
-                        'type': 'user_message',
-                        'message': user_msg.to_dict()
-                    }, ensure_ascii=False)}\n\n"
-                    
-                    yield f"data: {json.dumps({
-                        'type': 'ai_start'
-                    }, ensure_ascii=False)}\n\n"
-                    
-                    chunk_count = 0
-                    for chunk in stream_generator:
-                        full_response += chunk
-                        chunk_count += 1
+                    with app.app_context():
                         yield f"data: {json.dumps({
-                            'type': 'ai_chunk',
-                            'content': chunk
+                            'type': 'user_message',
+                            'message': user_msg.to_dict()
                         }, ensure_ascii=False)}\n\n"
                         
-                        # 每有50个chunk记录一次日志
-                        if chunk_count % 50 == 0:
-                            current_app.logger.info(f"已处理 {chunk_count} 个chunk，当前内容长度: {len(full_response)}")
-                    
-                    current_app.logger.info(f"流式输出完成，总共 {chunk_count} 个chunk，最终内容长度: {len(full_response)}")
-                    
-                    # 保存完整的AI回复
-                    if full_response.strip():  # 确保有内容才保存
-                        current_app.logger.info(f"保存AI回复，内容长度: {len(full_response)}")
-                        ai_msg = Message.create_message(conversation_id, 'assistant', full_response)
-                        current_app.logger.info(f"AI消息保存成功，ID: {ai_msg.id}")
-                    else:
-                        current_app.logger.warning("没有收到AI回复内容")
-                        # 创建一个错误消息
-                        ai_msg = Message.create_message(conversation_id, 'assistant', '回复失败，请重试')
-                    
-                    yield f"data: {json.dumps({
-                        'type': 'ai_complete',
-                        'message': ai_msg.to_dict()
-                    }, ensure_ascii=False)}\n\n"
-                    
-                    yield "data: [DONE]\n\n"
-                    
+                        yield f"data: {json.dumps({
+                            'type': 'ai_start'
+                        }, ensure_ascii=False)}\n\n"
+                        
+                        chunk_count = 0
+                        for chunk in stream_generator:
+                            full_response += chunk
+                            chunk_count += 1
+                            yield f"data: {json.dumps({
+                                'type': 'ai_chunk',
+                                'content': chunk
+                            }, ensure_ascii=False)}\n\n"
+                            
+                            # 每有50个chunk记录一次日志
+                            if chunk_count % 50 == 0:
+                                current_app.logger.info(f"已处理 {chunk_count} 个chunk，当前内容长度: {len(full_response)}")
+                        
+                        current_app.logger.info(f"流式输出完成，总共 {chunk_count} 个chunk，最终内容长度: {len(full_response)}")
+                        
+                        # 保存完整的AI回复
+                        if full_response.strip():  # 确保有内容才保存
+                            current_app.logger.info(f"保存AI回复，内容长度: {len(full_response)}")
+                            ai_msg = Message.create_message(conversation_id, 'assistant', full_response)
+                            current_app.logger.info(f"AI消息保存成功，ID: {ai_msg.id}")
+                        else:
+                            current_app.logger.warning("没有收到AI回复内容")
+                            # 创建一个错误消息
+                            ai_msg = Message.create_message(conversation_id, 'assistant', '回复失败，请重试')
+                        
+                        yield f"data: {json.dumps({
+                            'type': 'ai_complete',
+                            'message': ai_msg.to_dict()
+                        }, ensure_ascii=False)}\n\n"
+                        
+                        yield "data: [DONE]\n\n"
+                        
                 except Exception as e:
-                    current_app.logger.error(f"流式处理错误: {str(e)}", exc_info=True)
+                    # 使用标准logging，避免应用上下文问题
+                    import logging
+                    logging.error(f"流式处理错误: {str(e)}", exc_info=True)
+                    
                     # 如果有部分内容，尝试保存
                     if full_response.strip() and ai_msg is None:
                         try:
-                            current_app.logger.info(f"尝试保存部分内容，长度: {len(full_response)}")
-                            ai_msg = Message.create_message(conversation_id, 'assistant', full_response)
-                            current_app.logger.info(f"错误情况下保存部分内容成功，ID: {ai_msg.id}")
+                            with app.app_context():
+                                logging.info(f"尝试保存部分内容，长度: {len(full_response)}")
+                                ai_msg = Message.create_message(conversation_id, 'assistant', full_response)
+                                logging.info(f"错误情况下保存部分内容成功，ID: {ai_msg.id}")
                         except Exception as save_error:
-                            current_app.logger.error(f"保存部分内容失败: {str(save_error)}")
+                            logging.error(f"保存部分内容失败: {str(save_error)}")
                     
                     yield f"data: {json.dumps({
                         'type': 'error',
@@ -266,7 +284,8 @@ class ChatService:
             return stream_with_save()
             
         except Exception as e:
-            current_app.logger.error(f"发送流式消息失败: {str(e)}")
+            import logging
+            logging.error(f"发送流式消息失败: {str(e)}")
             def error_generator():
                 yield f"data: {json.dumps({
                     'type': 'error',

@@ -36,7 +36,19 @@ class APIService:
         config = self.get_api_config()
         
         if not config['api_key']:
-            raise ValueError("API密钥未配置")
+            current_app.logger.warning("模拟流式输出：API密钥未配置")
+            # 返回模拟流式生成器，传入None作为响应
+            if stream:
+                return self._stream_response_generator(None)
+            else:
+                return {
+                    'choices': [{
+                        'message': {
+                            'role': 'assistant',
+                            'content': '您好！我是AI助手，很高兴为您服务！请问有什么我可以帮助您的吗？'
+                        }
+                    }]
+                }
         
         headers = {
             'Content-Type': 'application/json',
@@ -82,22 +94,76 @@ class APIService:
     def _stream_response_generator(self, response):
         """生成流式响应数据"""
         try:
+            current_app.logger.info("开始处理流式响应")
+            chunk_count = 0
+            
+            # 如果没有response，使用模拟数据
+            if response is None:
+                current_app.logger.warning("API密钥未配置，使用模拟数据")
+                # 模拟流式输出数据用于测试
+                demo_chunks = [
+                    "您好！",
+                    "我是",
+                    "AI",
+                    "助手，",
+                    "很高兴",
+                    "为您",
+                    "服务！",
+                    "请问",
+                    "有什么",
+                    "我可以",
+                    "帮助您的吗？"
+                ]
+                import time
+                for chunk in demo_chunks:
+                    time.sleep(0.1)  # 模拟网络延迟
+                    yield chunk
+                return
+            
             for line in response.iter_lines():
                 if line:
                     line = line.decode('utf-8')
+                    current_app.logger.debug(f"收到原始行: {line}")
+                    
                     if line.startswith('data: '):
                         data = line[6:]  # 移除 'data: ' 前缀
                         if data.strip() == '[DONE]':
+                            current_app.logger.info("收到结束标记")
                             break
+                        
                         try:
                             chunk = json.loads(data)
-                            delta = chunk.get('choices', [{}])[0].get('delta', {})
-                            if 'content' in delta:
-                                yield delta['content']
-                        except json.JSONDecodeError:
+                            current_app.logger.debug(f"解析的chunk: {chunk}")
+                            
+                            # 尝试不同的响应格式
+                            content = None
+                            
+                            # OpenAI格式
+                            if 'choices' in chunk:
+                                delta = chunk.get('choices', [{}])[0].get('delta', {})
+                                content = delta.get('content')
+                            
+                            # 硅基流动格式（可能直接包含content）
+                            elif 'content' in chunk:
+                                content = chunk.get('content')
+                            
+                            # 其他可能的格式
+                            elif 'text' in chunk:
+                                content = chunk.get('text')
+                            
+                            if content:
+                                chunk_count += 1
+                                current_app.logger.debug(f"第{chunk_count}个chunk: {content}")
+                                yield content
+                            
+                        except json.JSONDecodeError as e:
+                            current_app.logger.warning(f"JSON解析失败: {e}, 数据: {data}")
                             continue
+                            
+            current_app.logger.info(f"流式响应处理完成，总共处理了 {chunk_count} 个chunk")
+            
         except Exception as e:
-            current_app.logger.error(f"流式响应处理失败: {str(e)}")
+            current_app.logger.error(f"流式响应处理失败: {str(e)}", exc_info=True)
             raise Exception(f"响应处理失败: {str(e)}")
     
     def _handle_stream_response(self, response):
