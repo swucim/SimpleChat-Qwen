@@ -37,10 +37,20 @@ class Message(db.Model):
     @staticmethod
     def create_message(conversation_id, role, content):
         """创建新消息"""
-        message = Message(conversation_id=conversation_id, role=role, content=content)
-        db.session.add(message)
-        db.session.commit()
-        return message
+        try:
+            from flask import current_app
+            current_app.logger.info(f"创建消息: conversation_id={conversation_id}, role={role}, content_length={len(content)}")
+            
+            message = Message(conversation_id=conversation_id, role=role, content=content)
+            db.session.add(message)
+            db.session.commit()
+            
+            current_app.logger.info(f"消息创建成功: message_id={message.id}")
+            return message
+        except Exception as e:
+            current_app.logger.error(f"创建消息失败: {str(e)}", exc_info=True)
+            db.session.rollback()
+            raise
     
     def __repr__(self):
         return f'<Message {self.id}: {self.role}>'

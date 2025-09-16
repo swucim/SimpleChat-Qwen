@@ -31,7 +31,7 @@ class APIService:
             stream: 是否使用流式响应
             
         Returns:
-            dict: API响应结果
+            dict or generator: API响应结果或流式生成器
         """
         config = self.get_api_config()
         
@@ -62,7 +62,7 @@ class APIService:
             response.raise_for_status()
             
             if stream:
-                return self._handle_stream_response(response)
+                return self._stream_response_generator(response)
             else:
                 return response.json()
                 
@@ -79,8 +79,29 @@ class APIService:
             current_app.logger.error(f"API响应解析失败: {str(e)}")
             raise Exception("API响应格式错误")
     
+    def _stream_response_generator(self, response):
+        """生成流式响应数据"""
+        try:
+            for line in response.iter_lines():
+                if line:
+                    line = line.decode('utf-8')
+                    if line.startswith('data: '):
+                        data = line[6:]  # 移除 'data: ' 前缀
+                        if data.strip() == '[DONE]':
+                            break
+                        try:
+                            chunk = json.loads(data)
+                            delta = chunk.get('choices', [{}])[0].get('delta', {})
+                            if 'content' in delta:
+                                yield delta['content']
+                        except json.JSONDecodeError:
+                            continue
+        except Exception as e:
+            current_app.logger.error(f"流式响应处理失败: {str(e)}")
+            raise Exception(f"响应处理失败: {str(e)}")
+    
     def _handle_stream_response(self, response):
-        """处理流式响应"""
+        """处理流式响应（遗留用于兼容性）"""
         try:
             content = ""
             for line in response.iter_lines():

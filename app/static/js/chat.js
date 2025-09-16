@@ -229,11 +229,15 @@ class SimpleChat {
             created_at: new Date().toISOString()
         });
         
-        // 显示加载状态
-        this.showLoadingMessage();
+        // 创建AI消息容器
+        const aiMessageElement = this.createStreamingMessageElement();
+        const messagesContainer = document.getElementById('chatMessages');
+        messagesContainer.appendChild(aiMessageElement);
+        this.scrollToBottom();
         
         try {
-            const response = await fetch('/api/chat/send', {
+            // 使用 EventSource 来处理流式数据
+            const response = await fetch('/api/chat/send-stream', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -248,23 +252,62 @@ class SimpleChat {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
-            const data = await response.json();
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let streamCompleted = false;
             
-            // 移除加载消息
-            this.removeLoadingMessage();
+            const aiContentElement = aiMessageElement.querySelector('.streaming-content');
             
-            if (data.success) {
-                // 显示AI回复
-                this.addMessageToChat(data.ai_message);
+            while (true) {
+                const { done, value } = await reader.read();
                 
-                // 刷新对话列表（标题可能已更新）
-                await this.loadConversations();
-            } else {
-                this.showError(data.error || '发送消息失败');
+                if (done) {
+                    streamCompleted = true;
+                    break;
+                }
+                
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n\n');
+                buffer = lines.pop(); // 保留最后一个不完整的行
+                
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6);
+                        if (data === '[DONE]') {
+                            streamCompleted = true;
+                            break;
+                        }
+                        
+                        try {
+                            const chunk = JSON.parse(data);
+                            this.handleStreamChunk(chunk, aiContentElement, aiMessageElement);
+                            
+                            // 如果收到 ai_complete 事件，标记为完成
+                            if (chunk.type === 'ai_complete') {
+                                streamCompleted = true;
+                            }
+                        } catch (e) {
+                            console.error('解析流数据错误:', e);
+                        }
+                    }
+                }
+                
+                if (streamCompleted) {
+                    break;
+                }
             }
+            
+            // 刷新对话列表（标题可能已更新）
+            await this.loadConversations();
+            
         } catch (error) {
             console.error('发送消息失败:', error);
-            this.removeLoadingMessage();
+            
+            // 移除AI消息容器
+            if (aiMessageElement && aiMessageElement.parentNode) {
+                aiMessageElement.parentNode.removeChild(aiMessageElement);
+            }
             
             // 根据错误类型显示不同的提示
             if (error.message.includes('timeout') || error.message.includes('Timeout')) {
@@ -275,7 +318,7 @@ class SimpleChat {
                 this.showError('发送消息失败，请重试');
             }
         } finally {
-            // 恢复输入和按钮
+            // 确保恢复输入和按钮状态
             this.isLoading = false;
             messageInput.disabled = false;
             sendBtn.disabled = false;
@@ -291,6 +334,69 @@ class SimpleChat {
         const messageElement = this.createMessageElement(message);
         messagesContainer.appendChild(messageElement);
         this.scrollToBottom();
+    }
+    
+    createStreamingMessageElement() {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message assistant streaming';
+        
+        const avatar = document.createElement('div');
+        avatar.className = 'message-avatar';
+        avatar.textContent = 'AI';
+        
+        const content = document.createElement('div');
+        content.className = 'message-content';
+        
+        const streamingContent = document.createElement('div');
+        streamingContent.className = 'streaming-content';
+        
+        const cursor = document.createElement('span');
+        cursor.className = 'streaming-cursor';
+        cursor.textContent = '|';
+        
+        content.appendChild(streamingContent);
+        content.appendChild(cursor);
+        messageDiv.appendChild(avatar);
+        messageDiv.appendChild(content);
+        
+        return messageDiv;
+    }
+    
+    handleStreamChunk(chunk, contentElement, messageElement) {
+        switch (chunk.type) {
+            case 'ai_start':
+                // AI开始生成回复
+                break;
+            case 'ai_chunk':
+                // 添加文本块
+                if (chunk.content) {
+                    contentElement.textContent += chunk.content;
+                    this.scrollToBottom();
+                }
+                break;
+            case 'ai_complete':
+                // AI完成回复
+                const cursor = messageElement.querySelector('.streaming-cursor');
+                if (cursor) {
+                    cursor.remove();
+                }
+                messageElement.classList.remove('streaming');
+                
+                // 添加时间戳
+                const time = document.createElement('div');
+                time.className = 'message-time';
+                time.textContent = this.formatTime(chunk.message.created_at);
+                contentElement.parentElement.appendChild(time);
+                break;
+            case 'error':
+                // 处理错误
+                console.error('流式错误:', chunk.error);
+                if (messageElement && messageElement.parentNode) {
+                    messageElement.parentNode.removeChild(messageElement);
+                }
+                this.showError(chunk.error);
+                break;
+        }
     }
 
     showLoadingMessage() {

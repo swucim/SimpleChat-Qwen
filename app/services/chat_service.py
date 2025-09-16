@@ -151,3 +151,125 @@ class ChatService:
             'conversation': conversation.to_dict(),
             'messages': [msg.to_dict() for msg in messages] if messages else []
         }
+    
+    @staticmethod
+    def send_message_stream(conversation_id, user_message, user_id=None):
+        """
+        发送消息并获取AI流式回复
+        
+        Args:
+            conversation_id: 对话ID
+            user_message: 用户消息内容
+            user_id: 用户ID（用于验证权限）
+            
+        Returns:
+            generator: 流式生成器
+        """
+        import json
+        try:
+            # 验证对话是否属于用户
+            if user_id:
+                conversation = Conversation.query.filter_by(id=conversation_id, user_id=user_id).first()
+                if not conversation:
+                    raise ValueError("对话不存在或无权限访问")
+            else:
+                conversation = Conversation.query.get(conversation_id)
+                if not conversation:
+                    raise ValueError("对话不存在")
+            
+            # 保存用户消息
+            user_msg = Message.create_message(conversation_id, 'user', user_message)
+            
+            # 如果是第一条消息，自动生成对话标题
+            if conversation.get_message_count() == 1:
+                conversation.update_title_from_first_message()
+            
+            # 获取对话历史（最近20条消息）
+            messages = Message.get_conversation_messages(conversation_id, limit=20)
+            
+            # 构建 API 请求的消息格式
+            api_messages = []
+            for msg in messages:
+                api_messages.append({
+                    'role': msg.role,
+                    'content': msg.content
+                })
+            
+            # 调用API获取流式回复
+            stream_generator = api_service.send_chat_request(api_messages, stream=True)
+            
+            # 用于积累完整回复内容
+            full_response = ""
+            ai_msg = None  # 初始化AI消息对象
+            
+            # 生成流式数据
+            def stream_with_save():
+                nonlocal full_response, ai_msg
+                try:
+                    yield f"data: {json.dumps({
+                        'type': 'user_message',
+                        'message': user_msg.to_dict()
+                    }, ensure_ascii=False)}\n\n"
+                    
+                    yield f"data: {json.dumps({
+                        'type': 'ai_start'
+                    }, ensure_ascii=False)}\n\n"
+                    
+                    chunk_count = 0
+                    for chunk in stream_generator:
+                        full_response += chunk
+                        chunk_count += 1
+                        yield f"data: {json.dumps({
+                            'type': 'ai_chunk',
+                            'content': chunk
+                        }, ensure_ascii=False)}\n\n"
+                        
+                        # 每有50个chunk记录一次日志
+                        if chunk_count % 50 == 0:
+                            current_app.logger.info(f"已处理 {chunk_count} 个chunk，当前内容长度: {len(full_response)}")
+                    
+                    current_app.logger.info(f"流式输出完成，总共 {chunk_count} 个chunk，最终内容长度: {len(full_response)}")
+                    
+                    # 保存完整的AI回复
+                    if full_response.strip():  # 确保有内容才保存
+                        current_app.logger.info(f"保存AI回复，内容长度: {len(full_response)}")
+                        ai_msg = Message.create_message(conversation_id, 'assistant', full_response)
+                        current_app.logger.info(f"AI消息保存成功，ID: {ai_msg.id}")
+                    else:
+                        current_app.logger.warning("没有收到AI回复内容")
+                        # 创建一个错误消息
+                        ai_msg = Message.create_message(conversation_id, 'assistant', '回复失败，请重试')
+                    
+                    yield f"data: {json.dumps({
+                        'type': 'ai_complete',
+                        'message': ai_msg.to_dict()
+                    }, ensure_ascii=False)}\n\n"
+                    
+                    yield "data: [DONE]\n\n"
+                    
+                except Exception as e:
+                    current_app.logger.error(f"流式处理错误: {str(e)}", exc_info=True)
+                    # 如果有部分内容，尝试保存
+                    if full_response.strip() and ai_msg is None:
+                        try:
+                            current_app.logger.info(f"尝试保存部分内容，长度: {len(full_response)}")
+                            ai_msg = Message.create_message(conversation_id, 'assistant', full_response)
+                            current_app.logger.info(f"错误情况下保存部分内容成功，ID: {ai_msg.id}")
+                        except Exception as save_error:
+                            current_app.logger.error(f"保存部分内容失败: {str(save_error)}")
+                    
+                    yield f"data: {json.dumps({
+                        'type': 'error',
+                        'error': str(e)
+                    }, ensure_ascii=False)}\n\n"
+            
+            return stream_with_save()
+            
+        except Exception as e:
+            current_app.logger.error(f"发送流式消息失败: {str(e)}")
+            def error_generator():
+                yield f"data: {json.dumps({
+                    'type': 'error',
+                    'error': str(e)
+                }, ensure_ascii=False)}\n\n"
+            return error_generator()

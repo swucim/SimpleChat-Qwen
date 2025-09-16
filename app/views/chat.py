@@ -1,5 +1,5 @@
-from flask import Blueprint, request, jsonify, session
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, Response
+from flask import Blueprint, request, jsonify, session, Response
 from app.services import ChatService
 from app.models import Conversation, Message
 import logging
@@ -138,4 +138,47 @@ def delete_conversation(conversation_id):
         return jsonify({
             'success': False,
             'error': '删除对话失败'
+        }), 500
+
+@chat.route('/send-stream', methods=['POST'])
+def send_message_stream():
+    """发送消息（流式响应）"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'message' not in data or 'conversation_id' not in data:
+            return jsonify({
+                'success': False,
+                'error': '请求参数不完整'
+            }), 400
+        
+        conversation_id = data['conversation_id']
+        message = data['message'].strip()
+        
+        if not message:
+            return jsonify({
+                'success': False,
+                'error': '消息内容不能为空'
+            }), 400
+        
+        user = ChatService.get_or_create_user()
+        
+        # 获取流式生成器
+        stream_generator = ChatService.send_message_stream(conversation_id, message, user.id)
+        
+        return Response(
+            stream_generator,
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'Access-Control-Allow-Origin': '*'
+            }
+        )
+            
+    except Exception as e:
+        logging.error(f"发送流式消息失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': '发送消息失败'
         }), 500
