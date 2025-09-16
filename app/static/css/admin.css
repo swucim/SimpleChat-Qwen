@@ -1,8 +1,21 @@
 /* 管理员后台样式 */
 
+/* 全局样式重置 */
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow-x: hidden;
+}
+
+body.login-page {
+    overflow: hidden;
+}
+
 /* 登录页面样式 */
 .login-container {
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -231,7 +244,7 @@
 
 .admin-nav-item:hover,
 .admin-nav-item.active {
-    background: #34495e;
+    background: #86BC25;
     color: white;
 }
 

@@ -73,5 +73,36 @@
     {% endif %}
 
     {% block scripts %}{% endblock %}
+    
+    <!-- 侧边栏导航激活状态脚本 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 获取所有导航项
+            const navItems = document.querySelectorAll('.admin-nav-item');
+            const currentPath = window.location.pathname;
+            
+            // 根据当前路径设置激活状态
+            navItems.forEach(function(item) {
+                const href = item.getAttribute('href');
+                if (href && currentPath === href) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+            
+            // 为每个导航项添加点击事件
+            navItems.forEach(function(item) {
+                item.addEventListener('click', function() {
+                    // 移除所有导航项的 active 类
+                    navItems.forEach(function(navItem) {
+                        navItem.classList.remove('active');
+                    });
+                    // 为当前点击的导航项添加 active 类
+                    this.classList.add('active');
+                });
+            });
+        });
+    </script>
 </body>
 </html>

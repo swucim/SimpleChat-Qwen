@@ -4,13 +4,8 @@
 
 {% block content %}
 <div class="dashboard-container">
-    <div class="dashboard-header">
-        <h1 class="dashboard-title">仪表板</h1>
-        <p class="dashboard-subtitle">系统运行状态概览</p>
-    </div>
-
     <!-- 统计卡片 -->
-    <div class="stats-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 2rem; max-width: 900px;">
+    <div class="stats-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 2rem;">
         <div class="stat-card">
             <div class="stat-value">{{ user_stats.get('total_users', 0) }}</div>
             <div class="stat-label">总用户数</div>
